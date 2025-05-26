@@ -231,7 +231,7 @@ def mirror_pr(upstream, downstream, pr_id):
                                         maintainer_can_modify=True)
 
         logger.info(f"PR создан: {result.title} (#{result.number})")
-	os.chdir(current_directory)
+        os.chdir(current_directory)
         tools.add_processing_prs(pr_id)
         return result
     except:
