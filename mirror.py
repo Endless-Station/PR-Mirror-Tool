@@ -57,38 +57,31 @@ class Mirror:
                 "Папка локального репозитория не настроена в конфигурации.")
             sys.exit()
 
-        # Проверка существования папки
-        if os.path.exists(local_dir):
-            # Если папка существует, проверить, является ли это git-репозиторием
-            git_dir = os.path.join(local_dir, ".git")
-            if os.path.isdir(git_dir):
-                self.logger.info(
-                    "Локальный репозиторий уже существует, пропуск клонирования.")
-            else:
-                # Если папка существует, но не git-репозиторий, можно удалить её или остановить
-                self.logger.warning(
-                    "Папка существует, но не является git-репозиторием. Удаляем и клонируем заново.")
-                try:
-                    shutil.rmtree(local_dir)
-                except Exception as e:
-                    self.logger.critical(
-                        f"Не удалось удалить существующую папку: {e}")
-                    sys.exit()
-                # Выполняем клонирование
-                try:
-                    subprocess.check_output(
-                        ["git", "clone", f"https://github.com/{config.downstream_owner}/{config.downstream_repo}", local_dir])
-                except subprocess.CalledProcessError:
-                    self.logger.critical("Произошла ошибка при клонировании.")
-                    sys.exit()
-        else:
-            # Папки нет, клонируем
-            try:
-                subprocess.check_output(
-                    ["git", "clone", f"https://github.com/{config.downstream_owner}/{config.downstream_repo}", local_dir])
-            except subprocess.CalledProcessError:
-                self.logger.critical("Произошла ошибка при клонировании.")
-                sys.exit()
+        if not config.local_repo_directory:
+			self.logger.critical("Каталог локального репозитория не задан в конфигурации.")
+			sys.exit()
+
+		if os.path.isdir(config.local_repo_directory) and not os.path.isdir(f"{config.local_repo_directory}/.git"):
+			self.logger.critical(
+				"Каталог локального репозитория уже существует и не является репозиторием git..")
+			sys.exit()
+
+		if not os.path.isdir(config.local_repo_directory):
+			self.logger.warning(
+				"Локальный клон потомка не найден, клонирование.")
+			try:
+				subprocess.check_output(
+					["git", "clone", f"https://github.com/{config.downstream_owner}/{config.downstream_repo}", f"{config.local_repo_directory}"])
+				current_directory = os.getcwd()
+				os.chdir(config.local_repo_directory)
+				subprocess.check_output(["git", "remote", "add", "upstream",
+                                    f"https://github.com/{config.upstream_owner}/{config.upstream_repo}"])
+				subprocess.check_output(["git", "remote", "add", "downstream",
+                                    f"https://github.com/{config.downstream_owner}/{config.downstream_repo}"])
+				os.chdir(current_directory)
+			except:
+				self.logger.critical("Во время клонирования произошла ошибка.")
+				sys.exit()
 
         if tools.is_gh_installed():
             if not tools.is_gh_logged():
