@@ -232,7 +232,7 @@ def mirror_pr(upstream, downstream, pr_id):
 
         logger.info(f"PR создан: {result.title} (#{result.number})")
         os.chdir(current_directory)
-        tools.add_processing_prs(pr_id)
+        tools.add_processed_pr(pr_id)
         return result
     except:
         logger.exception(
