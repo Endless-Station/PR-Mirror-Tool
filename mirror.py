@@ -134,8 +134,9 @@ class Mirror:
                 if event.payload["action"] == "closed" and event.payload["pull_request"]["merged"]:
                     self.logger.info("Обработка слияния.") # Processing merge.
                     requests_left, request_limit = self.github_api.rate_limiting
-                    mirror.mirror_pr(self.upstream, self.downstream, int(
-                        event.payload["pull_request"]["number"]))
+                    pr_number = int(event.payload["pull_request"]["number"])
+                    tool.add_processing_pr(pr_number)
+                    mirror_pr(self.upstream, self.downstream, pr_number)
                     requests_left_after, request_limit_after = self.github_api.rate_limiting
                     self.logger.info(
                         f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)") # Performed X requests (Y left)
@@ -154,7 +155,7 @@ class Mirror:
                         repo.get_comment(
                             event.payload["comment"]["id"]).create_reaction("-1")
                         return
-                    mirror.remirror_pr(self.upstream, self.downstream,
+                    remirror_pr(self.upstream, self.downstream,
                                        event.payload["issue"]["number"])
 
 

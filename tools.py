@@ -101,7 +101,13 @@ def add_processing_prs(processing_prs):
         if pr_number not in data['processing_prs']:
             data['processing_prs'].append(pr_number)
     write_work_log(data)
+
     
+def add_processing_pr(processing_pr):
+    data = read_work_log()
+    data['processing_prs'].append(processing_pr)
+    write_work_log(data)
+
 
 
 def get_processing_prs():
