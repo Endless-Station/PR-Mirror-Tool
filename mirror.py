@@ -26,45 +26,32 @@ class Mirror:
             elif config.api_key:
                 self.github_api = Github(config.api_key)
             else:
-                self.logger.critical(
-                    "Не указано имя пользователя/пароль или API-ключ для GitHub в настройках.")
-                sys.exit()
+                self.exit_with_error("Не указано имя пользователя/пароль или API-ключ для GitHub в настройках.")
         except Exception as e:
-            self.logger.critical(
-                "Ошибка при входе в GitHub, проверьте правильность данных или попробуйте позже.")
-            sys.exit()
+            self.exit_with_error("Ошибка при входе в GitHub, проверьте правильность данных или попробуйте позже.")
 
         try:
             self.upstream = self.github_api.get_repo(
                 f"{config.upstream_owner}/{config.upstream_repo}")
         except:
-            self.logger.critical(
-                "Ошибка при получении информации о исходном репозитории, убедитесь, что указаны правильные имя владельца и название репозитория.")
-            sys.exit()
+            self.exit_with_error("Ошибка при получении информации о исходном репозитории, убедитесь, что указаны правильные имя владельца и название репозитория.")
 
         try:
             self.downstream = self.github_api.get_repo(
                 f"{config.downstream_owner}/{config.downstream_repo}")
         except:
-            self.logger.critical(
-                "Ошибка при получении информации о целевом репозитории, убедитесь, что указаны правильные имя владельца и название репозитория.")
-            sys.exit()
+            self.exit_with_error("Ошибка при получении информации о целевом репозитории, убедитесь, что указаны правильные имя владельца и название репозитория.")
 
         local_dir = config.local_repo_directory
 
         if not local_dir:
-            self.logger.critical(
-                "Папка локального репозитория не настроена в конфигурации.")
-            sys.exit()
+            self.exit_with_error("Папка локального репозитория не настроена в конфигурации.")
 
         if not config.local_repo_directory:
-            self.logger.critical("Каталог локального репозитория не задан в конфигурации.")
-            sys.exit()
+            self.exit_with_error("Каталог локального репозитория не задан в конфигурации.")
 
         if os.path.isdir(config.local_repo_directory) and not os.path.isdir(f"{config.local_repo_directory}/.git"):
-            self.logger.critical(
-                "Каталог локального репозитория уже существует и не является репозиторием git..")
-            sys.exit()
+            self.exit_with_error("Каталог локального репозитория уже существует и не является репозиторием git..")
 
         if not os.path.isdir(config.local_repo_directory):
             self.logger.warning(
@@ -80,17 +67,13 @@ class Mirror:
                                     f"https://github.com/{config.downstream_owner}/{config.downstream_repo}"])
                 os.chdir(current_directory)
             except:
-                self.logger.critical("Во время клонирования произошла ошибка.")
-                sys.exit()
+                self.exit_with_error("Во время клонирования произошла ошибка.")
 
         if tools.is_gh_installed():
             if not tools.is_gh_logged():
-                self.logger.critical(
-                    "Авторизация в GitHub CLI не выполнена, выполните авторизацию вручную для продолжения.")
-                sys.exit()
+                self.exit_with_error("Авторизация в GitHub CLI не выполнена, выполните авторизацию вручную для продолжения.")
         else:
-            self.logger.critical("GitHub CLI не обнаружена в системе.")
-            sys.exit()
+            self.exit_with_error("GitHub CLI не обнаружена в системе.")
 
         if config.work_log_file:
             if not os.path.exists(config.work_log_file):
@@ -121,42 +104,70 @@ class Mirror:
                     for pr_number in reversed(processing_prs):
                         mirror_pr(self.upstream, self.downstream, pr_number)
         else:
-            self.logger.critical(
-                "В конфигируации отсуствует папка для работы с рабочими логами")
-            sys.exit()
+            self.exit_with_error("В конфигируации отсуствует папка для работы с рабочими логами")
         return
 
     def run(self):
-        self.logger.info("Движок зеркалирования запущен.") # Mirror engine running.
-        for repo, event in github_event_stream(self.github_api, [self.upstream, self.downstream], ["PullRequestEvent", "IssueCommentEvent"]):
-            if event.type == "PullRequestEvent" and repo == self.upstream:
-                self.logger.debug("Обработка события PR.") # Processing PR event.
-                if event.payload["action"] == "closed" and event.payload["pull_request"]["merged"]:
-                    self.logger.info("Обработка слияния.") # Processing merge.
-                    requests_left, request_limit = self.github_api.rate_limiting
-                    pr_number = int(event.payload["pull_request"]["number"])
-                    tool.add_processing_pr(pr_number)
-                    mirror_pr(self.upstream, self.downstream, pr_number)
-                    requests_left_after, request_limit_after = self.github_api.rate_limiting
-                    self.logger.info(
-                        f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)") # Performed X requests (Y left)
-            elif event.type == "IssueCommentEvent" and repo == self.downstream:
-                self.logger.debug("Обработка комментария.") # Processing comment.
-                if event.payload["action"] != "created":
-                    return
-                self.logger.debug(
-                    f"Пользователь: {event.payload['comment']['user']['login']}") # User: ...
-                self.logger.debug(
-                    f"Содержимое: {event.payload['comment']['body']}") # Contents: ...
-                action = event.payload['comment']['body'].split()[0].lower()
-                self.logger.debug(f"Действие: {action}") # Action: ...
-                if action.startswith("remirror"):
-                    if event.payload['comment']['author_association'] != "MEMBER" and event.payload['comment']['author_association'] != "OWNER":
-                        repo.get_comment(
-                            event.payload["comment"]["id"]).create_reaction("-1")
-                        return
-                    remirror_pr(self.upstream, self.downstream,
-                                       event.payload["issue"]["number"])
+        self.logger.info("Движок зеркалирования запущен.")
+        try:
+            for repo, event in github_event_stream(
+                self.github_api,
+                [self.upstream, self.downstream],
+                ["PullRequestEvent", "IssueCommentEvent"]
+            ):
+                try:
+                    if event.type == "PullRequestEvent" and repo == self.upstream:
+                        self.logger.debug("Обработка события PR.")
+                        if event.payload.get("action") == "closed" and event.payload["pull_request"].get("merged"):
+                            self.logger.info("Обработка слияния Pull Request.")
+                            
+                            pr_number = int(event.payload["pull_request"]["number"])
+                            tools.add_processing_pr(pr_number)
+    
+                            # Проверка на лимит запросов
+                            requests_left, _ = self.github_api.rate_limiting
+                            if requests_left < 10:
+                                self.logger.warning("Мало оставшихся запросов к GitHub API. Пропуск зеркалирования.")
+                                continue
+                            
+                            result = mirror_pr(self.upstream, self.downstream, pr_number)
+    
+                            requests_left_after, _ = self.github_api.rate_limiting
+                            self.logger.info(
+                                f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)"
+                            )
+    
+                    elif event.type == "IssueCommentEvent" and repo == self.downstream:
+                        self.logger.debug("Обработка комментария.")
+                        if event.payload.get("action") != "created":
+                            continue  # Не удаляем цикл из-за return
+                        
+                        comment_user = event.payload["comment"]["user"]["login"]
+                        comment_body = event.payload["comment"]["body"]
+                        action = comment_body.strip().split()[0].lower()
+                        self.logger.debug(f"Пользователь: {comment_user}, Действие: {action}")
+    
+                        if action.startswith("remirror"):
+                            association = event.payload["comment"]["author_association"]
+                            if association not in ["MEMBER", "OWNER"]:
+                                repo.get_comment(event.payload["comment"]["id"]).create_reaction("-1")
+                                self.logger.warning("Пользователь не имеет прав на remirror.")
+                                continue
+                            
+                            pr_number = event.payload["issue"]["number"]
+                            remirror_pr(self.upstream, self.downstream, pr_number)
+    
+                except Exception as inner_event_error:
+                    self.logger.exception(f"Ошибка при обработке одного из событий GitHub: {inner_event_error}")
+    
+        except Exception as e:
+            self.logger.exception("Ошибка при получении событий из GitHub.")
+    
+    def exit_with_error(self, message, fatal=True):
+        self.logger.critical(message)
+        if fatal:
+            sys.exit(1)
+
 
 
 def clean_repo():
@@ -273,8 +284,7 @@ def github_event_stream(github_api, repos, req_types):
     last_seen_ids = {}
     for repo in repos:
         last_seen_ids[repo.html_url] = int(repo.get_events()[0].id)
-    logger.info("Запуск потока событий.")  # "Starting event stream."
-
+    logger.info("Запуск потока событий.")
     while True:
         requests_left, request_limit = github_api.rate_limiting
         for repo in repos:
@@ -283,7 +293,6 @@ def github_event_stream(github_api, repos, req_types):
                 for e in repo.get_events():
                     event_list.append(e)
             except:
-                # "An error occured during event acquisition."
                 logger.exception("Произошла ошибка при получении событий.")
                 continue
             event_list = [e for e in event_list if int(
@@ -297,9 +306,6 @@ def github_event_stream(github_api, repos, req_types):
                     yield repo, e
                 last_seen_ids[repo.html_url] = int(e.id)
         requests_left_after, request_limit_after = github_api.rate_limiting
-        # "Performed {requests_left - requests_left_after} requests ({requests_left_after} left)"
-        logger.info(
-            f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)")
-        # "Checking in {config.event_stream_wait}s."
+        logger.info(f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)")
         logger.debug(f"Проверка через {config.event_stream_wait} секунд.")
         time.sleep(config.event_stream_wait)
