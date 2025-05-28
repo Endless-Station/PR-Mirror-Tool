@@ -12,7 +12,6 @@ logger = log.make_logger("log")
 logger.info("Запуск.")
 
 mirror = Mirror()
-mirror.initialize()
 
 while True:
 	mirror.initialize()
