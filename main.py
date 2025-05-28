@@ -15,6 +15,5 @@ mirror = Mirror()
 
 while True:
 	mirror.initialize()
-	for i in range(60):
-		mirror.run()
+	mirror.run()
 

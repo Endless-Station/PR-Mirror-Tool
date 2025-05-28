@@ -285,7 +285,7 @@ def github_event_stream(github_api, repos, req_types):
     for repo in repos:
         last_seen_ids[repo.html_url] = int(repo.get_events()[0].id)
     logger.info("Запуск потока событий.")
-    while True:
+    for i in range(60):
         requests_left, request_limit = github_api.rate_limiting
         for repo in repos:
             event_list = []
@@ -306,6 +306,6 @@ def github_event_stream(github_api, repos, req_types):
                     yield repo, e
                 last_seen_ids[repo.html_url] = int(e.id)
         requests_left_after, request_limit_after = github_api.rate_limiting
-        logger.info(f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)")
+        logger.info(f"Иттерация: {i} Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)")
         logger.debug(f"Проверка через {config.event_stream_wait} секунд.")
         time.sleep(config.event_stream_wait)
