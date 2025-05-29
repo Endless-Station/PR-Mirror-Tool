@@ -122,20 +122,22 @@ class Mirror:
                             self.logger.info("Обработка слияния Pull Request.")
                             
                             pr_number = int(event.payload["pull_request"]["number"])
-                            tools.add_processing_pr(pr_number)
-    
-                            # Проверка на лимит запросов
-                            requests_left, _ = self.github_api.rate_limiting
-                            if requests_left < 10:
-                                self.logger.warning("Мало оставшихся запросов к GitHub API. Пропуск зеркалирования.")
-                                continue
-                            
-                            result = mirror_pr(self.upstream, self.downstream, pr_number)
-    
-                            requests_left_after, _ = self.github_api.rate_limiting
-                            self.logger.info(
-                                f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)"
-                            )
+                            if not check_processed_pr(pr_number):
+                                tools.add_processing_pr(pr_number)
+                                # Проверка на лимит запросов
+                                requests_left, _ = self.github_api.rate_limiting
+                                if requests_left < 10:
+                                    self.logger.warning("Мало оставшихся запросов к GitHub API. Пропуск зеркалирования.")
+                                    continue
+
+                                result = mirror_pr(self.upstream, self.downstream, pr_number)
+
+                                requests_left_after, _ = self.github_api.rate_limiting
+                                self.logger.info(
+                                    f"Выполнено {requests_left - requests_left_after} запросов ({requests_left_after} осталось)"
+                                )
+                            else:
+                                self.logger.info(f"PR {pr_number} уже был отработан. Пропуск") 
     
                     elif event.type == "IssueCommentEvent" and repo == self.downstream:
                         self.logger.debug("Обработка комментария.")

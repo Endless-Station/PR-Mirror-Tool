@@ -109,6 +109,10 @@ def add_processing_pr(processing_pr):
     write_work_log(data)
 
 
+def check_processed_pr(pr_number):
+    data = read_work_log()
+    if pr_number in data['processed_prs']:
+        return tr
 
 def get_processing_prs():
     """
