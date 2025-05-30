@@ -122,7 +122,7 @@ class Mirror:
                             self.logger.info("Обработка слияния Pull Request.")
                             
                             pr_number = int(event.payload["pull_request"]["number"])
-                            if not check_processed_pr(pr_number):
+                            if not tools.check_processed_pr(pr_number):
                                 tools.add_processing_pr(pr_number)
                                 # Проверка на лимит запросов
                                 requests_left, _ = self.github_api.rate_limiting
@@ -169,7 +169,6 @@ class Mirror:
         self.logger.critical(message)
         if fatal:
             sys.exit(1)
-
 
 
 def clean_repo():

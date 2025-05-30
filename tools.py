@@ -112,7 +112,9 @@ def add_processing_pr(processing_pr):
 def check_processed_pr(pr_number):
     data = read_work_log()
     if pr_number in data['processed_prs']:
-        return tr
+        return True
+    else:
+        return False
 
 def get_processing_prs():
     """
@@ -175,7 +177,10 @@ def get_last_merged_prs(repo, last_activation_day, limit=10):
             "number") not in processing_prs]
         # print(f"После фильтрации по 'в обработке' осталось {len(filtered_prs)} PR")
 
-        # 4. Оставляем только номера PR
+        # 4. Сортируем PR по дате мерджа (от новых к старым)
+        filtered_prs.sort(key=lambda pr: datetime.fromisoformat(pr['mergedAt']), reverse=True)
+
+        # 5. Оставляем только номера PR
         pr_numbers = [pr["number"] for pr in filtered_prs]
 
         # print(f"Итоговый список PR: {pr_numbers}")
