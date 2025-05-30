@@ -21,6 +21,7 @@ mirror_branch_prefix = "upstream-merge-"
 # пропущеные PR за время простоя программы
 depth_pr_check = 300
 
+log_file = "mirror.log"
 work_log_file = "work_log.json"
 
 log_level = logging.INFO
